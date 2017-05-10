@@ -1,0 +1,4 @@
+uint32 LEFT_HEAD_CAMERA=0
+uint32 cameraIndex
+---
+sensor_msgs/Image cameraImage
