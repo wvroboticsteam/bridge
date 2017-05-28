@@ -1,8 +1,11 @@
 #include "RosBridge.hpp"
+#include "BridgeTypes.hpp"
 
 unsigned int RosBridge::referenceCount = 0;
 
 RosBridge::RosBridge()
+:runThread(false)
+,nanoPeriod(10000000)
 {
     if(referenceCount == 0)
     {
@@ -11,7 +14,7 @@ RosBridge::RosBridge()
 	    char **argv = new char*;
 	    *argv = new char[7];
 	    snprintf(argv[0], 7, "%s", "bridge");
-	    argv[6] = 0;
+	    argv[0][6] = 0;
 	    int argc = 1;
 
 	    ros::init(argc, argv, "bridge");
@@ -25,7 +28,7 @@ RosBridge::RosBridge()
 	nodeHandle = new ros::NodeHandle;
 
 	leftHeadImageSubscriber = nodeHandle->subscribe("/multisense/camera/left/image_color", 1, &RosBridge::StoreLeftHeadImage, this);
-	getCameraImageService = nodeHandle->advertiseService("/bridge/getCameraImage", &RosBridge::GetCameraImage, this);
+	getCameraImageService = nodeHandle->advertiseService(bridge::GET_CAMERA_IMAGE_SRV_NAME, &RosBridge::GetCameraImage, this);
 
 	mutex = new pthread_mutex_t;
 	pthread_mutex_init(mutex, NULL);
@@ -40,6 +43,12 @@ RosBridge::~RosBridge()
 
     if(referenceCount == 0)
     {
+	if(runThread)
+	{
+	    runThread = false;
+	    pthread_join(thread, NULL);
+	}
+
 	ros::shutdown();
 
 	pthread_mutex_destroy(mutex);
@@ -75,4 +84,58 @@ bool RosBridge::GetCameraImage(bridge::GetImageService::Request &req, bridge::Ge
     pthread_mutex_unlock(mutex);
 
     return true;
+}
+
+bool RosBridge::RunLoopThread(int64_t nPeriod)
+{
+    int ret = 0;
+
+    if(runThread)
+	return false;
+
+    nanoPeriod = nPeriod;
+    runThread = true;
+    if((ret = pthread_create(&thread, NULL, &RosBridge::ThreadTarget, this)) != 0)
+	runThread = false;
+
+    return (ret == 0);
+}
+
+void* RosBridge::ThreadTarget(void *data)
+{
+    RosBridge *parent = (RosBridge*)data;
+    struct timespec ts;
+    int sanityCheck;
+
+    ROS_INFO("Ros thread entered\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    while(parent->runThread && ros::ok())
+    {
+	sanityCheck = 0;
+
+	ros::spinOnce();
+
+	parent->AddNano(ts, parent->nanoPeriod);
+	while(clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) != 0)
+	    if(sanityCheck++ > 10)
+		break;
+
+    }
+
+    ROS_INFO("Ros thread exited (runThread: %s | ros::ok: %s)\n", parent->runThread ? "YES" : "NO", ros::ok() ? "YES" : "NO");
+
+    return NULL;
+}
+
+void RosBridge::AddNano(struct timespec &ts, int64_t nPeriod)
+{
+    const int64_t NANO_SEC = 1000000000;
+
+    ts.tv_nsec += nPeriod;
+    if(ts.tv_nsec > (NANO_SEC - 1))
+    {
+	ts.tv_sec += ts.tv_nsec / NANO_SEC;
+	ts.tv_nsec = ts.tv_nsec % NANO_SEC;
+    }
 }

@@ -1,11 +1,27 @@
 ADD_LIBRARY(ros-bridge
   RosBridge.cpp
 )
-
-MESSAGE("BIN DIR: ${CMAKE_INSTALL_PREFIX}")
 TARGET_INCLUDE_DIRECTORIES(ros-bridge PUBLIC 
   $<BUILD_INTERFACE:${CATKIN_DEVEL_PREFIX}/include/bridge>
   $<BUILD_INTERFACE:${CMAKE_INSTALL_PREFIX}/include/bridge>
 )
+TARGET_LINK_LIBRARIES(ros-bridge
+  ${catkin_LIBRARIES}
+)
 
-INSTALL(TARGETS ros-bridge LIBRARY DESTINATION lib)
+ADD_EXECUTABLE(bridge-app
+  bridge-app.cpp
+)
+TARGET_LINK_LIBRARIES(bridge-app
+  ros-bridge
+)
+
+SET(INSTALLED_HEADERS
+  BridgeTypes.hpp
+)
+
+INSTALL(TARGETS ros-bridge bridge-app
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
+
+INSTALL(FILES ${INSTALLED_HEADERS} DESTINATION "include/${PROJECT_NAME}")
