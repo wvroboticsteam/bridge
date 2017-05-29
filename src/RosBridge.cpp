@@ -30,6 +30,9 @@ RosBridge::RosBridge()
 	leftHeadImageSubscriber = nodeHandle->subscribe("/multisense/camera/left/image_color", 1, &RosBridge::StoreLeftHeadImage, this);
 	getCameraImageService = nodeHandle->advertiseService(bridge::GET_CAMERA_IMAGE_SRV_NAME, &RosBridge::GetCameraImage, this);
 
+	depthMapSubscriber = nodeHandle->subscribe("/multisense/camera/points2", 1, &RosBridge::StoreDepthMap, this);
+	getDepthMapService = nodeHandle->advertiseService(bridge::GET_DEPTH_MAP_SRC_NAME, &RosBridge::GetDepthMap, this);
+
 	mutex = new pthread_mutex_t;
 	pthread_mutex_init(mutex, NULL);
     }
@@ -57,6 +60,22 @@ RosBridge::~RosBridge()
 	delete[] imageArray;
 	delete mutex;
     }
+}
+
+bool RosBridge::GetDepthMap(bridge::GetDepthMap::Request&, bridge::GetDepthMap::Response &res)
+{
+    pthread_mutex_lock(mutex);
+    res.pointCloud = depthMap;
+    pthread_mutex_unlock(mutex);
+
+    return true;
+}
+
+void RosBridge::StoreDepthMap(const sensor_msgs::PointCloud2::ConstPtr &ptr)
+{
+    pthread_mutex_lock(mutex);
+    depthMap = *ptr;
+    pthread_mutex_unlock(mutex);
 }
 
 void RosBridge::StoreCameraImage(CAMERA_ID id, const sensor_msgs::Image::ConstPtr &ptr)

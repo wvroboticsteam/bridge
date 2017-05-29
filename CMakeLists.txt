@@ -15,6 +15,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -g")
 
 ADD_SERVICE_FILES(FILES
   GetImageService.srv
+  GetDepthMap.srv
 )
 
 GENERATE_MESSAGES(DEPENDENCIES

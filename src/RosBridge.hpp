@@ -3,6 +3,7 @@
 
 #include <ros/ros.h>
 #include "GetImageService.h"
+#include "GetDepthMap.h"
 
 class RosBridge
 {
@@ -25,14 +26,19 @@ protected:
     void StoreLeftHeadImage(const sensor_msgs::Image::ConstPtr&);
     static void* ThreadTarget(void*);
     void AddNano(struct timespec&, int64_t);
+    void StoreDepthMap(const sensor_msgs::PointCloud2::ConstPtr&);
+    bool GetDepthMap(bridge::GetDepthMap::Request&, bridge::GetDepthMap::Response&);
 
     ros::Subscriber leftHeadImageSubscriber;
     ros::ServiceServer getCameraImageService;
+    ros::Subscriber depthMapSubscriber;
+    ros::ServiceServer getDepthMapService;
 
     ros::NodeHandle *nodeHandle;
 
     sensor_msgs::Image *imageArray;
     static unsigned int referenceCount;
+    sensor_msgs::PointCloud2 depthMap;
 
     pthread_mutex_t *mutex;
     bool runThread;
