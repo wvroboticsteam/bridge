@@ -1,5 +1,6 @@
 ADD_LIBRARY(ros-bridge
   RosBridge.cpp
+  RobotCommands.cpp
 )
 TARGET_INCLUDE_DIRECTORIES(ros-bridge PUBLIC 
   $<BUILD_INTERFACE:${CATKIN_DEVEL_PREFIX}/include/bridge>
@@ -18,6 +19,7 @@ TARGET_LINK_LIBRARIES(bridge-app
 
 SET(INSTALLED_HEADERS
   BridgeTypes.hpp
+  RobotCommands.hpp
 )
 
 INSTALL(TARGETS ros-bridge bridge-app
