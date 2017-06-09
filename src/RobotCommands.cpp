@@ -17,6 +17,13 @@ RobotCommands::RobotCommands()
 	feetInitialized = false;
 	numStepsTaken = 0;
 	stillWalking = false;
+
+	cx = 0;
+	cy = 0;
+	fx = 0;
+	fy = 0;
+	Tx = 0;
+	Ty = 0;
 }
 
 RobotCommands::~RobotCommands()
@@ -452,7 +459,7 @@ ihmc_msgs::FootTrajectoryRosMessage RobotCommands::createFootMotion(bool isRight
 	return footMotion;
 }
 
-void RobotCommands::generateArmMotion(bool doRight, int posNum)
+ihmc_msgs::ArmTrajectoryRosMessage RobotCommands::generateArmMotion(bool doRight, int posNum)
 {
 	ihmc_msgs::ArmTrajectoryRosMessage armMotion = this->createArmMotion(doRight,posNum);
 	//int numSubscribers = armTrajPub.getNumSubscribers();
@@ -464,6 +471,7 @@ void RobotCommands::generateArmMotion(bool doRight, int posNum)
 	//ROS_INFO("Number of Subscribers to Hand Trajectory Publisher= %d", numSubscribers);
 	//armMotion.execution_mode = armMotion.OVERRIDE;
 	//handTrajPub.publish(handMotion);
+	return armMotion;
 
 }
 
@@ -774,7 +782,7 @@ void RobotCommands::makeHeadingZero()
 			pelvisRotation.getColumn(0).getX())*57.29578;
 
 	addHeadingChangeSteps(-curHeadingDeg);
-	publishStepList();
+	//publishStepList();
 }
 
 void RobotCommands::generateStairClimbList(int numSteps)
@@ -801,6 +809,56 @@ void RobotCommands::generateStairClimbList(int numSteps)
 	}
 	numStepsTaken = 0;
 	ROS_INFO("Stair Climb List Generated");
+}
+
+void RobotCommands::setCameraParams(double fxIn, double fyIn, double TxIn, double TyIn, double cxIn,
+		double cyIn, tf::StampedTransform cameraOpticTransformIn)
+{
+	fx = fxIn;
+	fy = fyIn;
+	Tx = TxIn;
+	Ty = TyIn;
+	cx = cxIn;
+	cy = cyIn;
+	cameraOpticTransform = cameraOpticTransformIn;
+}
+
+tf::Vector3 RobotCommands::getGroundIntersect3D(int xPixel, int yPixel)
+{
+	double X;
+	double Y;
+	double Z = 100; //meters
+	double Zdelta = Z/2;
+	tf::Vector3 worldXYZ;
+
+	if (feetInitialized == false)
+		updateFootFrames();
+
+	double groundZ = (lastRightFootFrame.getOrigin().getZ() + lastRightFootFrame.getOrigin().getZ())/2;
+
+	for (int i = 0; i < 20; i ++)
+	{
+		X = -((xPixel - cx)*Z - Tx)/fx; //negative sign are for flipped image
+		Y = -((yPixel - cy)*Z - Ty)/fy; //negative signs are for flipped image
+		worldXYZ = cameraOpticTransform * tf::Vector3(X,Y,Z);
+
+		if (i == 0 && worldXYZ.getZ() > groundZ)
+		{
+			ROS_INFO("No Intersection");
+			worldXYZ.setZ(999);
+			return worldXYZ;
+		}
+
+		if (worldXYZ.getZ() < groundZ)
+			Z = Z - Zdelta;
+		else
+			Z = Z + Zdelta;
+
+		Zdelta = Zdelta/2;
+	}
+
+	//ROS_INFO("Found Ground Intersection at x = %f, y = %f",worldXYZ.getX(),worldXYZ.getY());
+	return worldXYZ;
 }
 
 ihmc_msgs::FootstepDataRosMessage RobotCommands::createStairStep(bool isRight, tf::Vector3 offset)
@@ -859,25 +917,34 @@ ihmc_msgs::FootstepDataRosMessage RobotCommands::createStairStep(bool isRight, t
     return footstep;
 }
 
-void RobotCommands::generateFootstepList()
+void RobotCommands::generateFootstepList(std::vector<int> mouseX, std::vector<int> mouseY)
 {
-	//uint numWayPoints = walkPath.size();
-	//tf::StampedTransform rightFootFrame;
-	//tf::StampedTransform leftFootFrame;
-	//tf::StampedTransform pelvisFrame;
-	//try{
-	//	tfListener.lookupTransform("world", "rightFoot", ros::Time(0), rightFootFrame);
-	//	tfListener.lookupTransform("world", "leftFoot", ros::Time(0), leftFootFrame);
-	//	tfListener.lookupTransform("world", "pelvis", ros::Time(0), pelvisFrame);
-	//}
-	//catch (tf::TransformException &ex){
-	//	ROS_ERROR("%s",ex.what());
-	//	ros::Duration(1.0).sleep();
-	//}
+	ROS_INFO("MADE IT HERE 4");
+	uint numWayPoints = 0;
+	for (int i = 0; i < 5; i++)
+	{
+		if ((mouseX[i] != 0) && (mouseY[i] != 0))
+		{
+			numWayPoints++;
+		}
+	}
 
-	//tf::Matrix3x3 pelvisRotation = tf::Matrix3x3(pelvisFrame.getRotation());
-	//double curHeadingDeg = atan2(pelvisRotation.getColumn(0).getY(),
-	//		pelvisRotation.getColumn(0).getX())*57.29578;
+	tf::StampedTransform rightFootFrame;
+	tf::StampedTransform leftFootFrame;
+	tf::StampedTransform pelvisFrame;
+	try{
+		tfListener.lookupTransform("world", "rightFoot", ros::Time(0), rightFootFrame);
+		tfListener.lookupTransform("world", "leftFoot", ros::Time(0), leftFootFrame);
+		tfListener.lookupTransform("world", "pelvis", ros::Time(0), pelvisFrame);
+	}
+	catch (tf::TransformException &ex){
+		ROS_ERROR("%s",ex.what());
+		ros::Duration(1.0).sleep();
+	}
+
+	tf::Matrix3x3 pelvisRotation = tf::Matrix3x3(pelvisFrame.getRotation());
+	double curHeadingDeg = atan2(pelvisRotation.getColumn(0).getY(),
+			pelvisRotation.getColumn(0).getX())*57.29578;
 
 	if (footStepList.footstep_data_list.size() > 0)
 	{
@@ -892,36 +959,36 @@ void RobotCommands::generateFootstepList()
 	centerFeet();
 
 	tf::Vector3 worldXYZ;
-	//double xDelta;
-	//double yDelta;
-	//double prevX;
-	//double prevY;
-//	for (uint i = 0; i < numWayPoints; i ++)
-//	{
-//		worldXYZ = getGroundIntersect3D(walkPath[i].x, walkPath[i].y);
-//		if (i == 0)
-//		{
-//			xDelta = worldXYZ.getX() - pelvisFrame.getOrigin().getX();
-//			yDelta = worldXYZ.getY() - pelvisFrame.getOrigin().getY();
-//		}
-//		else
-//		{
-//			xDelta = worldXYZ.getX() - prevX;
-//			yDelta = worldXYZ.getY() - prevY;
-//		}
-//
-//		double newHeadingDeg = atan2(yDelta,xDelta)*57.29578;
-//		double walkDistance = sqrt(xDelta*xDelta + yDelta*yDelta);
-//
-//		double headingDeltaDeg = (newHeadingDeg - curHeadingDeg);
-//
-//		addHeadingChangeSteps(headingDeltaDeg);
-//		addStraightSteps(walkDistance);
-//
-//		prevX = worldXYZ.getX();
-//		prevY = worldXYZ.getY();
-//		curHeadingDeg = newHeadingDeg;
-//	}
+	double xDelta;
+	double yDelta;
+	double prevX;
+	double prevY;
+	for (uint i = 0; i < numWayPoints; i ++)
+	{
+		worldXYZ = getGroundIntersect3D(mouseX[i], mouseY[i]);
+		if (i == 0)
+		{
+			xDelta = worldXYZ.getX() - pelvisFrame.getOrigin().getX();
+			yDelta = worldXYZ.getY() - pelvisFrame.getOrigin().getY();
+		}
+		else
+		{
+			xDelta = worldXYZ.getX() - prevX;
+			yDelta = worldXYZ.getY() - prevY;
+		}
+
+		double newHeadingDeg = atan2(yDelta,xDelta)*57.29578;
+		double walkDistance = sqrt(xDelta*xDelta + yDelta*yDelta);
+
+		double headingDeltaDeg = (newHeadingDeg - curHeadingDeg);
+
+		addHeadingChangeSteps(headingDeltaDeg);
+		addStraightSteps(walkDistance);
+
+		prevX = worldXYZ.getX();
+		prevY = worldXYZ.getY();
+		curHeadingDeg = newHeadingDeg;
+	}
 
 	publishStepList();
 }
@@ -929,4 +996,9 @@ void RobotCommands::generateFootstepList()
 ihmc_msgs::FootstepDataListRosMessage RobotCommands::getFootStepList()
 {
 	return footStepList;
+}
+
+ihmc_msgs::FootstepDataListRosMessage RobotCommands::getStairFootStepList()
+{
+	return stairClimbList;
 }

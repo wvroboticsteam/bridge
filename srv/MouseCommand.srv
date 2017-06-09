@@ -1,0 +1,7 @@
+geometry_msgs/Vector3 point1
+geometry_msgs/Vector3 point2
+geometry_msgs/Vector3 point3
+geometry_msgs/Vector3 point4
+geometry_msgs/Vector3 point5
+---
+bool commandExecuted

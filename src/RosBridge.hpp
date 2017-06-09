@@ -5,6 +5,7 @@
 #include "BasicCommands.h"
 #include "GetImageService.h"
 #include "GetDepthMap.h"
+#include "MouseCommand.h"
 #include "ihmc_msgs/FootstepDataListRosMessage.h"
 #include "ihmc_msgs/ArmTrajectoryRosMessage.h"
 #include "ihmc_msgs/FootstepStatusRosMessage.h"
@@ -48,6 +49,7 @@ protected:
     void StoreDepthMap(const sensor_msgs::PointCloud2::ConstPtr&);
     bool GetDepthMap(bridge::GetDepthMap::Request&, bridge::GetDepthMap::Response&);
     bool BasicCommands(bridge::BasicCommands::Request&, bridge::BasicCommands::Response&);
+    bool MouseCommand(bridge::MouseCommand::Request&, bridge::MouseCommand::Response&);
 
 	void GetFootstepStatus(const ihmc_msgs::FootstepStatusRosMessage&);
 	void GetWalkingStatus(const ihmc_msgs::WalkingStatusRosMessage&);
@@ -72,17 +74,25 @@ protected:
     ros::ServiceServer basicCommandService;
     ros::ServiceServer getCameraImageService;
     ros::ServiceServer getDepthMapService;
+    ros::ServiceServer mouseCommandService;
+
+    tf::TransformListener *tfListener;
 
     ros::NodeHandle *nodeHandle;
 
     RobotCommands *rc;
 
     void PublishFootStepList();
+    void PublishStairFootStepList();
     void PublishChestMotion(ihmc_msgs::ChestTrajectoryRosMessage);
+    void PublishArmMotion(ihmc_msgs::ArmTrajectoryRosMessage);
 
     sensor_msgs::Image *imageArray;
     static unsigned int referenceCount;
     sensor_msgs::PointCloud2 depthMap;
+    tf::StampedTransform cameraOpticTransform;
+    std::vector<int> mousePointsX;
+    std::vector<int> mousePointsY;
 
     pthread_mutex_t *mutex;
     bool runThread;

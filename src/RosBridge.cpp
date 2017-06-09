@@ -23,11 +23,13 @@ RosBridge::RosBridge()
 	    delete argv;
 	}
 
-	imageArray = new sensor_msgs::Image[CAMERA_ID_SIZE];
-	
 	nodeHandle = new ros::NodeHandle;
 
+	imageArray = new sensor_msgs::Image[CAMERA_ID_SIZE];
+
 	rc = new RobotCommands;
+
+	tfListener = new tf::TransformListener;
 
 	InitializePublishers();
 	InitializeSubscribers();
@@ -90,6 +92,7 @@ void RosBridge::InitializeServices()
 	getCameraImageService = nodeHandle->advertiseService(bridge::GET_CAMERA_IMAGE_SRV_NAME, &RosBridge::GetCameraImage, this);
 	getDepthMapService = nodeHandle->advertiseService(bridge::GET_DEPTH_MAP_SRV_NAME, &RosBridge::GetDepthMap, this);
 	basicCommandService = nodeHandle->advertiseService(bridge::BASIC_COMMAND_SRV_NAME, &RosBridge::BasicCommands, this);
+	mouseCommandService = nodeHandle->advertiseService(bridge::MOUSE_COMMAND_SRV_NAME, &RosBridge::MouseCommand, this);
 }
 
 bool RosBridge::BasicCommands(bridge::BasicCommands::Request &req, bridge::BasicCommands::Response &res)
@@ -105,6 +108,7 @@ bool RosBridge::BasicCommands(bridge::BasicCommands::Request &req, bridge::Basic
 	else if (req.commandString.data == "closeFeet")
 	{
 		ROS_INFO("Closing Feet");
+		rc->resetStepList();
 		rc->closeFeet();
 		this->PublishFootStepList();
 	}
@@ -118,13 +122,58 @@ bool RosBridge::BasicCommands(bridge::BasicCommands::Request &req, bridge::Basic
 		ROS_INFO("Leaning Torso Back");
 		this->PublishChestMotion(rc->generateTorsoMove(false));
 	}
-	else if (req.commandString.data == "centerFeet")
+	else if (req.commandString.data == "moveForward")
 	{
-
+		ROS_INFO("Moving Forward");
+		rc->resetStepList();
+		rc->addStraightSteps(0.1);
+		this->PublishFootStepList();
 	}
-	else if (req.commandString.data == "centerFeet")
+	else if (req.commandString.data == "moveBackward")
 	{
+		ROS_INFO("Move Backward");
+		rc->resetStepList();
+		rc->addStraightSteps(-0.1);
+		this->PublishFootStepList();
+	}
+	else if (req.commandString.data == "moveRight")
+	{
+		ROS_INFO("Move Right");
+		rc->resetStepList();
+		rc->addSideSteps(-0.05);
+		this->PublishFootStepList();
+	}
+	else if (req.commandString.data == "moveLeft")
+	{
+		ROS_INFO("Move Left");
+		rc->resetStepList();
+		rc->addSideSteps(0.05);
+		this->PublishFootStepList();
+	}
+	else if (req.commandString.data == "moveRightArm")
+	{
+		ROS_INFO("Moving Right Arm");
+		this->PublishArmMotion(rc->generateArmMotion(true,0));
+	}
+	else if (req.commandString.data == "moveLeftArm")
+	{
+		ROS_INFO("Moving Left Arm");
+		this->PublishArmMotion(rc->generateArmMotion(false,0));
+	}
+	else if (req.commandString.data == "zeroHeading")
+	{
+		ROS_INFO("Making heading zero");
+		rc->makeHeadingZero();
+		this->PublishFootStepList();
+	}
+	else if (req.commandString.data == "climbStairs")
+	{
+		rc->generatePelvisMove(0.08);
+		ros::Duration(1.5).sleep();
 
+		rc->generateStairClimbList(9);
+		ros::Duration(0.5).sleep();
+		this->PublishStairFootStepList();
 	}
 	else
 	{
@@ -141,6 +190,34 @@ bool RosBridge::BasicCommands(bridge::BasicCommands::Request &req, bridge::Basic
     return result;
 }
 
+bool RosBridge::MouseCommand(bridge::MouseCommand::Request &req, bridge::MouseCommand::Response &res)
+{
+	bool result = false;
+	ROS_INFO("MADE IT HERE 3");
+	mousePointsX.clear();
+	mousePointsY.clear();
+	mousePointsX.push_back(req.point1.x);
+	mousePointsX.push_back(req.point2.x);
+	mousePointsX.push_back(req.point3.x);
+	mousePointsX.push_back(req.point4.x);
+	mousePointsX.push_back(req.point5.x);
+
+	mousePointsY.push_back(req.point1.x);
+	mousePointsY.push_back(req.point2.x);
+	mousePointsY.push_back(req.point3.x);
+	mousePointsY.push_back(req.point4.x);
+	mousePointsY.push_back(req.point5.x);
+
+	rc->generateFootstepList(mousePointsX,mousePointsY);
+
+    pthread_mutex_lock(mutex);
+    res.commandExecuted = true;
+    pthread_mutex_unlock(mutex);
+
+    result = true;
+
+    return result;
+}
 
 bool RosBridge::GetDepthMap(bridge::GetDepthMap::Request&, bridge::GetDepthMap::Response &res)
 {
@@ -177,6 +254,19 @@ bool RosBridge::GetCameraImage(bridge::GetImageService::Request &req, bridge::Ge
 {
     if(req.cameraIndex >= CAMERA_ID_SIZE)
 	return false;
+
+	try
+	{
+		tfListener->lookupTransform("/world", "left_camera_optical_frame", ros::Time(0), cameraOpticTransform);
+
+		cameraOpticTransform.setRotation(cameraOpticTransform.getRotation());// *
+	}
+	catch (tf::TransformException &ex)
+	{
+		ROS_ERROR("%s",ex.what());
+		ros::Duration(1.0).sleep();
+	}
+	rc->setCameraParams(fx, fy, Tx, Ty, cx, cy, cameraOpticTransform);
 
     pthread_mutex_lock(mutex);
     res.cameraImage = imageArray[req.cameraIndex];
@@ -226,10 +316,21 @@ void RosBridge::PublishFootStepList()
 	footstepListPublisher.publish(rc->getFootStepList());
 }
 
+void RosBridge::PublishStairFootStepList()
+{
+	footstepListPublisher.publish(rc->getStairFootStepList());
+}
+
 void RosBridge::PublishChestMotion(ihmc_msgs::ChestTrajectoryRosMessage chestMotion)
 {
 	torsoPublisher.publish(chestMotion);
 }
+
+void RosBridge::PublishArmMotion(ihmc_msgs::ArmTrajectoryRosMessage armMotion)
+{
+	armTrajPublisher.publish(armMotion);
+}
+
 
 bool RosBridge::RunLoopThread(int64_t nPeriod)
 {

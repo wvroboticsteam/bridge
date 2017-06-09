@@ -32,18 +32,25 @@ public:
 	RobotCommands();
 	~RobotCommands();
 
+	void addStraightSteps(double);
+	void addSideSteps(double);
 	void generateFootstepList(double);
-	void generateFootstepList();
+	void generateFootstepList(std::vector<int>, std::vector<int>);
 	void generateStairClimbList(int);
 	void publishStepList();
-	void generateArmMotion(bool,int);
+	ihmc_msgs::ArmTrajectoryRosMessage generateArmMotion(bool,int);
 	ihmc_msgs::ChestTrajectoryRosMessage generateTorsoMove(bool);
 	void generatePelvisMove(double);
 	int getNumStepsTaken();
 	void centerFeet();
 	void closeFeet();
+	void resetStepList();
+	void makeHeadingZero();
+	tf::Vector3 getGroundIntersect3D(int, int);
+	void setCameraParams(double, double, double, double, double, double, tf::StampedTransform);
 
 	ihmc_msgs::FootstepDataListRosMessage getFootStepList();
+	ihmc_msgs::FootstepDataListRosMessage getStairFootStepList();
 
 	double swingTime;
 	double transferTime;
@@ -71,27 +78,22 @@ private:
 
 	//cv::Mat lastImage;
 	//cv::Mat currentImage;
-	//tf::StampedTransform cameraOpticTransform;
+	tf::StampedTransform cameraOpticTransform;
 	//std::vector<cv::Point> walkPath;
 	//std::vector<cv::Point> handlePoints;
 	//std::vector<tf::Vector3> handleXYZ;
 
-//	double fx;
-//	double fy;
-//	double Tx;
-//	double Ty;
-//	double cx;
-//	double cy;
+	double fx;
+	double fy;
+	double Tx;
+	double Ty;
+	double cx;
+	double cy;
 	bool feetInitialized;
 
-	tf::Vector3 getGroundIntersect3D(int, int);
 	tf::Vector3 getHandleIntersect3D(int, int);
-	void addStraightSteps(double);
-	void addSideSteps(double);
 	void addHeadingChangeSteps(double);
 
-	void makeHeadingZero();
-	void resetStepList();
 	void updateFootFrames();
 
 	tf::Transform lastRightFootFrame;

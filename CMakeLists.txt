@@ -19,6 +19,7 @@ ADD_SERVICE_FILES(FILES
   BasicCommands.srv
   GetImageService.srv
   GetDepthMap.srv
+  MouseCommand.srv
 )
 
 GENERATE_MESSAGES(DEPENDENCIES
