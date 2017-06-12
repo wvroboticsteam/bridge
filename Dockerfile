@@ -34,4 +34,6 @@ RUN mkdir -p ${WVWS}/src
 WORKDIR ${WVWS}
 RUN git clone https://github.com/wvroboticsteam/bridge.git ${WVWS}/src/bridge
 RUN . /opt/ros/indigo/setup.sh && catkin_make install
-RUN . ${WVWS}/install/setup.sh && bridge-app
+#RUN echo "source install/setup.sh; bridge-app" > runitdamnit.sh
+ADD startup.bash startup.bash
+CMD ["./startup.bash"]
