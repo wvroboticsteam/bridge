@@ -27,7 +27,7 @@ RUN . /opt/ros/indigo/setup.sh \
 && catkin build
 
 #EXPOSE 8000
-#EXPOSE 8001
+EXPOSE 8001
 #ENV ROS_MASTER_URI http://127.0.0.1:8001
 
 RUN mkdir -p ${WVWS}/src
