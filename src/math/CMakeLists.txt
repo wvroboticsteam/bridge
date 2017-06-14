@@ -1,0 +1,25 @@
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
+
+SET(INSTALLED_HEADERS
+  StandardMath.hpp
+  RandomSequence.hpp
+  MathTypes.hpp
+)
+
+ADD_LIBRARY(SystemToolkit-Math
+  StandardMath.cpp
+  RandomSequence.cpp
+)
+
+INSTALL(TARGETS SystemToolkit-Math 
+  ARCHIVE DESTINATION lib  
+  LIBRARY DESTINATION lib
+)
+
+INSTALL(FILES ${INSTALLED_HEADERS}
+  DESTINATION "include/${PROJECT_NAME}/math"
+)
+
+IF(BUILD_TESTS_ENABLED)
+  ADD_SUBDIRECTORY(tests)
+ENDIF(BUILD_TESTS_ENABLED)

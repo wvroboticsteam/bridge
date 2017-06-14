@@ -1,3 +1,8 @@
+ADD_SUBDIRECTORY(core)
+ADD_SUBDIRECTORY(communications)
+ADD_SUBDIRECTORY(types)
+ADD_SUBDIRECTORY(math)
+
 ADD_LIBRARY(ros-bridge
   RosBridge.cpp
 )
@@ -14,6 +19,7 @@ ADD_EXECUTABLE(bridge-app
 )
 TARGET_LINK_LIBRARIES(bridge-app
   ros-bridge
+  SystemToolkit-Communications
 )
 
 SET(INSTALLED_HEADERS
