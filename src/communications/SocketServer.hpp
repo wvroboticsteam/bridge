@@ -11,82 +11,84 @@ namespace SystemToolkit
 namespace Communications
 {
 
-	class SocketServer : public Socket
+    class SocketServer : public Socket
+    {
+    public:
+	SocketServer();
+	SocketServer(SOCKET_TYPE, int);
+	SocketServer(const SocketServer&);
+	~SocketServer();
+
+	SocketServer& operator=(const SocketServer&);
+	void Connect();
+	void Close();
+	void SetCallback(void (*)(void*, unsigned int));
+
+    protected:
+	struct AcceptThreadData
 	{
-	public:
-		SocketServer();
-		SocketServer(SOCKET_TYPE, int);
-		SocketServer(const SocketServer&);
-		~SocketServer();
+	    SocketServer *parent;
+	    int socketFD;
 
-		SocketServer& operator=(const SocketServer&);
-		void Connect();
-		void Close();
-
-	protected:
-		struct AcceptThreadData
+	    AcceptThreadData()
+	    :parent(NULL)
+	    ,socketFD(0)
 		{
-			SocketServer *parent;
-			int socketFD;
 
-			AcceptThreadData()
-			:parent(NULL)
-			,socketFD(0)
-				{
+		}
 
-				}
-
-			AcceptThreadData(SocketServer *instance, int fd)
-			:parent(instance)
-			,socketFD(fd)
-				{
-
-				}
-
-			AcceptThreadData& operator=(const AcceptThreadData &other)
-				{
-					parent = other.parent;
-					socketFD = other.socketFD;
-					return *this;
-				}
-		};
-
-		struct ReadThreadData
+	    AcceptThreadData(SocketServer *instance, int fd)
+	    :parent(instance)
+	    ,socketFD(fd)
 		{
-			Core::Thread<SocketServer> thread;
-			SocketServer *parent;
-			bool connected;
-			char readBuffer[1024];
-			int readFD;
-			int exitCode;
 
-			ReadThreadData()
-			:connected(false)
-			,readFD(-1)
-			,exitCode(0)
-				{
+		}
 
-				}
-
-			void ClearBuffer()
-				{
-					memset(readBuffer, 0, 1024);
-				}
-		};
-
-		void CopyObject(const SocketServer&);
-		void SetRef();
-		void* AcceptConnectionThread(void*);
-		void* ReadThread(void*);
-		void SpawnReadThread(int);
-
-		int *refCount;
-		Core::Thread<SocketServer> *acceptThread;
-		AcceptThreadData acceptThreadData;
-		Types::Array<ReadThreadData> *readThreadData;
-		int acceptThreadReturn;
-		bool acceptingConnections;
+	    AcceptThreadData& operator=(const AcceptThreadData &other)
+		{
+		    parent = other.parent;
+		    socketFD = other.socketFD;
+		    return *this;
+		}
 	};
+
+	struct ReadThreadData
+	{
+	    Core::Thread<SocketServer> thread;
+	    SocketServer *parent;
+	    bool connected;
+	    char readBuffer[1024];
+	    int readFD;
+	    int exitCode;
+
+	    ReadThreadData()
+	    :connected(false)
+	    ,readFD(-1)
+	    ,exitCode(0)
+		{
+
+		}
+
+	    void ClearBuffer()
+		{
+		    memset(readBuffer, 0, 1024);
+		}
+	};
+
+	void CopyObject(const SocketServer&);
+	void SetRef();
+	void* AcceptConnectionThread(void*);
+	void* ReadThread(void*);
+	void SpawnReadThread(int);
+
+	int *refCount;
+	Core::Thread<SocketServer> *acceptThread;
+	AcceptThreadData acceptThreadData;
+	Types::Array<ReadThreadData> *readThreadData;
+	int acceptThreadReturn;
+	bool acceptingConnections;
+	void (*callback)(void*, unsigned int);
+    };
 
 }
 

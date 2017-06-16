@@ -20,6 +20,7 @@ ADD_EXECUTABLE(bridge-app
 TARGET_LINK_LIBRARIES(bridge-app
   ros-bridge
   SystemToolkit-Communications
+  SystemToolkit-Core
 )
 
 SET(INSTALLED_HEADERS

@@ -1,6 +1,6 @@
-#include "communications/SocketServer.hpp"
-#include "communications/SocketClient.hpp"
-#include "core/Thread.hpp"
+#include "../SocketServer.hpp"
+#include "../SocketClient.hpp"
+#include "../../core/Thread.hpp"
 #include <unistd.h>
 #include <stdio.h>
 
@@ -30,7 +30,6 @@ int main(int argc, char **argv)
 
 		server.JoinThread();
 		client.JoinThread();
-
 	}
 	catch(SystemToolkit::Communications::ERROR_TYPES e)
 	{
@@ -74,9 +73,10 @@ void* LaunchServer(void*)
 	{
 		printf("[server] error: %X\n", e);
 	}
+
 	
 	delete socket;
-		
+
 	return NULL;
 }
 
@@ -100,7 +100,7 @@ void* LaunchClient(void*)
 
 		usleep(50000);
 
-		socket->SendMessage("server-exit", 11);
+		//socket->SendMessage("server-exit", 11);
 
 		socket->Close();
 	}
