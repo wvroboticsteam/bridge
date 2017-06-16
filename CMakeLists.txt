@@ -8,17 +8,22 @@ find_package(catkin REQUIRED# COMPONENTS
 roscpp
 sensor_msgs
 message_generation
+tf2_ros
+tf
 #  tf2_ros
 )
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -g")
 
 ADD_SERVICE_FILES(FILES
+  BasicCommands.srv
   GetImageService.srv
   GetDepthMap.srv
+  MouseCommand.srv
 )
 
 GENERATE_MESSAGES(DEPENDENCIES
+  std_msgs
   sensor_msgs
 )
 
