@@ -23,7 +23,6 @@ namespace Communications
     ,refCount(NULL)
     ,acceptThread(NULL)
     ,readThreadData(NULL)
-    ,callback(NULL)
     {
 	SetRef();
     }
@@ -33,7 +32,6 @@ namespace Communications
     ,refCount(NULL)
     ,acceptThread(NULL)
     ,readThreadData(NULL)
-    ,callback(NULL)
     {
 	SetRef();
     }
@@ -79,11 +77,6 @@ namespace Communications
     {
 	CopyObject(other);
 	return *this;
-    }
-
-    void SocketServer::SetCallback(void (*func)(void*, unsigned int))
-    {
-	callback = func;
     }
 
     void SocketServer::Connect()
@@ -158,6 +151,11 @@ namespace Communications
 	    throw ERROR_LACK_RESOURCES;
     }
 
+    bool SocketServer::SendMessage(const void *data, unsigned int dataSize, int fd)
+    {
+	return (write(fd, data, dataSize) == dataSize);
+    }
+
     void* SocketServer::AcceptConnectionThread(void *data)
     {
 	AcceptThreadData *threadData = (AcceptThreadData*)data;
@@ -224,7 +222,7 @@ namespace Communications
 			threadData->readBuffer[1023] = 0;
 			
 		    if(threadData->parent->callback)
-			threadData->parent->callback(threadData->readBuffer, bytesRead);
+			threadData->parent->callback(threadData->readBuffer, bytesRead, threadData->readFD);
 
 		    printf("Server [%d] Received MSG: %s\n", threadData->readFD, threadData->readBuffer);
 		}

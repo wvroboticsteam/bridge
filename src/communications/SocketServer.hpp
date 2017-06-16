@@ -22,7 +22,7 @@ namespace Communications
 	SocketServer& operator=(const SocketServer&);
 	void Connect();
 	void Close();
-	void SetCallback(void (*)(void*, unsigned int));
+	bool SendMessage(const void*, unsigned int, int);
 
     protected:
 	struct AcceptThreadData
@@ -87,7 +87,6 @@ namespace Communications
 	Types::Array<ReadThreadData> *readThreadData;
 	int acceptThreadReturn;
 	bool acceptingConnections;
-	void (*callback)(void*, unsigned int);
     };
 
 }

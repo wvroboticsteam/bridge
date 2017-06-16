@@ -24,12 +24,19 @@ TARGET_LINK_LIBRARIES(bridge-app
   SystemToolkit-Core
 )
 
+ADD_EXECUTABLE(bridge-client
+  bridge-client.cpp
+)
+TARGET_LINK_LIBRARIES(bridge-client
+  SystemToolkit-Communications
+)
+
 SET(INSTALLED_HEADERS
   BridgeTypes.hpp
   RobotCommands.hpp
 )
 
-INSTALL(TARGETS ros-bridge bridge-app
+INSTALL(TARGETS ros-bridge bridge-app bridge-client
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 

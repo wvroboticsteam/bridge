@@ -14,6 +14,7 @@ tf
 )
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -g")
+ADD_DEFINITIONS("-Wno-unused-parameter") # ros warning
 
 ADD_SERVICE_FILES(FILES
   BasicCommands.srv

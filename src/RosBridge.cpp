@@ -95,6 +95,35 @@ void RosBridge::InitializeServices()
 	mouseCommandService = nodeHandle->advertiseService(bridge::MOUSE_COMMAND_SRV_NAME, &RosBridge::MouseCommand, this);
 }
 
+bool RosBridge::BasicCommands(unsigned int code, tf::StampedTransform *pelvis)
+{
+    switch(code)
+    {
+	case 0:
+	    ROS_INFO("Moving Forward");
+	    rc->resetStepList();
+	    rc->addStraightSteps(0.1);
+	    this->PublishFootStepList();
+	    break;
+	case 1:
+	    try
+	    {
+		if(pelvis != NULL)
+		    tfListener->lookupTransform("world", "pelvis", ros::Time(0), *pelvis);
+	    }
+	    catch(...)
+	    {
+		ROS_ERROR("lookup of pelvis wrt world failed\n");
+	    }
+	    break;
+	default:
+	    ROS_ERROR("Invalid option: %d\n", code);
+	    return false;
+    }
+
+    return true;
+}
+
 bool RosBridge::BasicCommands(bridge::BasicCommands::Request &req, bridge::BasicCommands::Response &res)
 {
 

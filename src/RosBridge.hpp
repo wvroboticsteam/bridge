@@ -28,6 +28,7 @@ public:
     ~RosBridge();
 
     bool RunLoopThread(int64_t);
+    bool BasicCommands(unsigned int, tf::StampedTransform* = NULL);
 
 protected:
     enum CAMERA_ID
@@ -36,9 +37,9 @@ protected:
 	CAMERA_ID_SIZE
     };
 
-	void InitializeSubscribers();
-	void InitializePublishers();
-	void InitializeServices();
+    void InitializeSubscribers();
+    void InitializePublishers();
+    void InitializeServices();
 
     bool GetCameraImage(bridge::GetImageService::Request&, bridge::GetImageService::Response&);
 
@@ -51,22 +52,22 @@ protected:
     bool BasicCommands(bridge::BasicCommands::Request&, bridge::BasicCommands::Response&);
     bool MouseCommand(bridge::MouseCommand::Request&, bridge::MouseCommand::Response&);
 
-	void GetFootstepStatus(const ihmc_msgs::FootstepStatusRosMessage&);
-	void GetWalkingStatus(const ihmc_msgs::WalkingStatusRosMessage&);
-	void GetStateChange(const ihmc_msgs::HighLevelStateChangeStatusRosMessage&);
+    void GetFootstepStatus(const ihmc_msgs::FootstepStatusRosMessage&);
+    void GetWalkingStatus(const ihmc_msgs::WalkingStatusRosMessage&);
+    void GetStateChange(const ihmc_msgs::HighLevelStateChangeStatusRosMessage&);
     void GetImageInfo(const sensor_msgs::CameraInfo&);
 
-	ros::Publisher footstepListPublisher;
-	ros::Publisher armTrajPublisher;
-	ros::Publisher pelvisHeightPublisher;
-	ros::Publisher torsoPublisher;
-	ros::Publisher handTrajPublisher;
-	ros::Publisher headPublisher;
+    ros::Publisher footstepListPublisher;
+    ros::Publisher armTrajPublisher;
+    ros::Publisher pelvisHeightPublisher;
+    ros::Publisher torsoPublisher;
+    ros::Publisher handTrajPublisher;
+    ros::Publisher headPublisher;
 
-	ros::Subscriber leftImageInfoSubscriber;
-	ros::Subscriber footstepStatusSubscriber;
-	ros::Subscriber walkingStatusSubscriber;
-	ros::Subscriber highLevelStatusSubscriber;
+    ros::Subscriber leftImageInfoSubscriber;
+    ros::Subscriber footstepStatusSubscriber;
+    ros::Subscriber walkingStatusSubscriber;
+    ros::Subscriber highLevelStatusSubscriber;
 
     ros::Subscriber leftHeadImageSubscriber;
     ros::Subscriber depthMapSubscriber;
@@ -99,16 +100,16 @@ protected:
     pthread_t thread;
     int64_t nanoPeriod;
 
-	int numStepsTaken;
+    int numStepsTaken;
 
-	double fx;
-	double fy;
-	double Tx;
-	double Ty;
-	double cx;
-	double cy;
-	bool feetInitialized;
-	bool stillWalking;
+    double fx;
+    double fy;
+    double Tx;
+    double Ty;
+    double cx;
+    double cy;
+    bool feetInitialized;
+    bool stillWalking;
 };
 
 #endif
