@@ -23,6 +23,7 @@ namespace Communications
 	void Connect();
 	void Close();
 	bool SendMessage(const void*, unsigned int, int);
+	bool UDPSendMessage(const void*, unsigned int);
 
     protected:
 	struct AcceptThreadData
@@ -80,6 +81,7 @@ namespace Communications
 	void* AcceptConnectionThread(void*);
 	void* ReadThread(void*);
 	void SpawnReadThread(int);
+	void* UDPReadThread(void*);
 
 	int *refCount;
 	Core::Thread<SocketServer> *acceptThread;
@@ -87,6 +89,8 @@ namespace Communications
 	Types::Array<ReadThreadData> *readThreadData;
 	int acceptThreadReturn;
 	bool acceptingConnections;
+	int udpDescriptor;
+	Core::Thread<SocketServer> udpThread;
     };
 
 }

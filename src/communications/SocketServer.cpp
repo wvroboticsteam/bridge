@@ -12,6 +12,10 @@
 using namespace SystemToolkit::Core;
 using namespace SystemToolkit::Types;
 
+
+static struct sockaddr_in fromAddr;
+static socklen_t fromAddrSize;
+
 namespace SystemToolkit
 {
 
@@ -54,20 +58,31 @@ namespace Communications
 		free(refCount);
 		refCount = NULL;
 
-		if(acceptThread != NULL)
+		if(socketType == SOCKET_TYPE_UDP)
 		{
-		    loopControl = false;
-		    acceptThread->JoinThread();
-		    delete acceptThread;
+		    if(loopControl)
+		    {
+			loopControl = false;
+			udpThread.JoinThread();
+		    }
 		}
-
-		if(readThreadData != NULL)
+		else
 		{
-		    for(size_t i=0; i<readThreadData->GetSize(); i++)
-			readThreadData->operator[](i).thread.JoinThread();
+		    if(acceptThread != NULL)
+		    {
+			loopControl = false;
+			acceptThread->JoinThread();
+			delete acceptThread;
+		    }
 
-		    delete readThreadData;
-		    readThreadData = NULL;
+		    if(readThreadData != NULL)
+		    {
+			for(size_t i=0; i<readThreadData->GetSize(); i++)
+			    readThreadData->operator[](i).thread.JoinThread();
+			
+			delete readThreadData;
+			readThreadData = NULL;
+		    }
 		}
 	    }
 	}
@@ -93,31 +108,50 @@ namespace Communications
 	SetSocketType(type);
 
 	memset(&serverAddress, 0, sizeof(serverAddress));
-	if((socketFD = socket(AF_INET, type, IPPROTO_IP)) == -1)
-	    goto CON_SER_FAIL;
+	if(type == SOCK_STREAM)
+	{
+	    if((socketFD = socket(AF_INET, type, IPPROTO_IP)) == -1)
+		goto CON_SER_FAIL;
+	}
+	else
+	{
+	    if((socketFD = socket(AF_INET, type, IPPROTO_UDP)) == -1)
+		goto CON_SER_FAIL;
+	}
 
 	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_addr.s_addr = INADDR_ANY;
+	serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddress.sin_port = htons(socketPort);
 
 	if(bind(socketFD, (struct sockaddr*) &serverAddress, sizeof(serverAddress)) < 0)
 	    goto CON_SER_FAIL;
 
-	if(listen(socketFD, serverBacklog) < 0)
-	    goto CON_SER_FAIL;
+	if(type == SOCK_DGRAM)
+	{
+	    udpDescriptor = socketFD;
+	    loopControl = true;
+	    udpThread = Thread<SocketServer>(this, &SocketServer::UDPReadThread, this);
+	    udpThread.LaunchThread();
+	}
+	else if(type == SOCK_STREAM)
+	{
+	    if(listen(socketFD, serverBacklog) < 0)
+		goto CON_SER_FAIL;
 
-	loopControl = true;
+	    loopControl = true;
 
-	acceptThreadData.parent = this;
-	acceptThreadData.socketFD = socketFD;
+	    acceptThreadData.parent = this;
+	    acceptThreadData.socketFD = socketFD;
 
-	sampleData.parent = this;
-	sampleData.connected = false;
-	readThreadData = new Array<ReadThreadData>(serverBacklog, sampleData, false);
-	acceptThread = new Thread<SocketServer>(this, &SocketServer::AcceptConnectionThread, &acceptThreadData);
-	acceptingConnections = true;
-	acceptThread->LaunchThread();
-
+	    sampleData.parent = this;
+	    sampleData.connected = false;
+	    readThreadData = new Array<ReadThreadData>(serverBacklog, sampleData, false);
+	    acceptThread = new Thread<SocketServer>(this, &SocketServer::AcceptConnectionThread, &acceptThreadData);
+	    acceptingConnections = true;
+	    acceptThread->LaunchThread();
+	}
+	else
+	    printf("wtf\n");
 	return;
 
     CON_SER_FAIL:
@@ -154,6 +188,12 @@ namespace Communications
     bool SocketServer::SendMessage(const void *data, unsigned int dataSize, int fd)
     {
 	return (write(fd, data, dataSize) == dataSize);
+    }
+
+    bool SocketServer::UDPSendMessage(const void *data, unsigned int dataSize)
+    {
+	int ret = sendto(udpDescriptor, data, dataSize, 0, (struct sockaddr*)&fromAddr, fromAddrSize);
+	return (ret == (int)dataSize);
     }
 
     void* SocketServer::AcceptConnectionThread(void *data)
@@ -195,6 +235,50 @@ namespace Communications
 
 	parent->acceptingConnections = false;
 	close(socketFD);
+	return NULL;
+    }
+
+    void* SocketServer::UDPReadThread(void *data)
+    {
+	SocketServer *parent = (SocketServer*)data;
+	ssize_t bytesRead;
+	uint8_t buffer[1024];
+	struct pollfd pollFD;
+	pollFD.fd = parent->udpDescriptor;
+	pollFD.events = POLLIN | POLLPRI;
+
+	while(parent->loopControl)
+	{
+	    pollFD.revents = 0;
+	    poll(&pollFD, 1, 5000);
+	    if((pollFD.revents & POLLRDHUP) || (pollFD.revents & POLLHUP))
+	    {
+		break;
+	    }
+	    else if((pollFD.revents & POLLIN) || (pollFD.revents & POLLPRI))
+	    {
+		fromAddrSize = sizeof(fromAddr);
+		if((bytesRead = recvfrom(parent->udpDescriptor, buffer, 1024, 0, (struct sockaddr*)&fromAddr, &fromAddrSize)) > 0)
+		{
+		    if(bytesRead < 1022)
+			buffer[bytesRead+1] = 0;
+		    else
+			buffer[1023] = 0;
+
+		    if(callback)
+			parent->callback(buffer, bytesRead, 0);
+		    else
+			printf("UDP Server Received MSG: %s\n", buffer);
+		}
+		else if(bytesRead < 0)
+		{
+		    //throw GenerateSystemDescriptiveError(errno);
+		    printf("ReadThread [udp server] caught error: %ld, %d, %X\n", (long int)bytesRead, errno, pollFD.revents);
+		}
+	    }
+	}
+
+	close(parent->udpDescriptor);
 	return NULL;
     }
 

@@ -11,7 +11,7 @@ using namespace SystemToolkit::Core;
 using namespace SystemToolkit::Communications;
 
 RosBridge *myBridge;
-SocketServer *socket = NULL;
+SocketServer *mySocket = NULL;
 
 int main()
 {
@@ -26,13 +26,14 @@ int main()
 
     try
     {
-	socket = new SocketServer(SOCKET_TYPE_UDP, 8001);
+	mySocket = new SocketServer(SOCKET_TYPE_UDP, 8001);
 		
-	if(!socket->ValidateParameters())
+	if(!mySocket->ValidateParameters())
 	    printf("Invalid something or other\n");
-		
+
+	mySocket->SetCallback(ServerCallback);
 	printf("[server] Connecting\n");
-	socket->Connect();
+	mySocket->Connect();
     }
     catch(SystemToolkit::Communications::ERROR_TYPES e)
     {
@@ -46,7 +47,7 @@ int main()
     while(run)
 	usleep(50000);
 
-    delete socket;
+    delete mySocket;
     delete myBridge;
     return 0;
 }
@@ -56,7 +57,7 @@ void SignalHandler(int)
     run = false;
 }
 
-void ServerCallback(void *data, unsigned int dataSize, int fd)
+void ServerCallback(void *data, unsigned int dataSize, int)
 {
     unsigned int command;
     tf::StampedTransform pelvis;
@@ -75,16 +76,16 @@ void ServerCallback(void *data, unsigned int dataSize, int fd)
 	    case 0:
 		if(!myBridge->BasicCommands(command))
 		{
-		    socket->SendMessage("error", 5, fd);
+		    mySocket->UDPSendMessage("error", 5);
 		    ROS_ERROR("BasicCommand of 0 failed\n");
 		}
 		else
-		    socket->SendMessage("ack", 3, fd);
+		    mySocket->UDPSendMessage("ack", 3);
 		break;
 	    case 1:
 		if(!myBridge->BasicCommands(command, &pelvis))
 		{
-		    socket->SendMessage("error", 5, fd);
+		    mySocket->UDPSendMessage("error", 5);
 		    ROS_ERROR("BasicCommand of 0 failed\n");
 		}
 		else
@@ -95,12 +96,13 @@ void ServerCallback(void *data, unsigned int dataSize, int fd)
 		    result[1] = vec.getY();
 		    result[2] = vec.getZ();
 
-		    socket->SendMessage(result, sizeof(double) * 3, fd);
+		    ROS_INFO("Sending: %f, %f, %f", result[0], result[1], result[2]);
+		    mySocket->UDPSendMessage(result, sizeof(double) * 3);
 		}
 		break;
 	    default:
 		ROS_ERROR("Invalid option received: %u\n", command);
-		socket->SendMessage("invalid", 7, fd);
+		mySocket->UDPSendMessage("invalid", 7);
 		break;
 	}
     }

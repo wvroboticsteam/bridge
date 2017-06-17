@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
 	printf("[client] Connecting\n");
 	client.Connect();
 
+	client.SetCallback(Callback);
 	usleep(50000);
 	client.SendMessage(&command, sizeof(unsigned int));
 	wait = true;
@@ -61,7 +62,7 @@ void Callback(void *data, unsigned int dataSize, int)
     if(dataSize == (sizeof(double) * 3))
     {
 	memcpy(pelvis, data, sizeof(double) * 3);
-	printf("Client received pelvis origin: %3.f, %.3f, %.3f\n",
+	printf("Client received pelvis origin: %.6f, %.6f, %.6f\n",
 	       pelvis[0], pelvis[1], pelvis[2]);
     }
     else

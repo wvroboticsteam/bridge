@@ -82,7 +82,7 @@ namespace Communications
 			
 	SetSocketType(type);
 			
-	socketFD = socket(AF_INET, type, IPPROTO_IP);
+	socketFD = socket(AF_INET, type, IPPROTO_UDP);
 	if(socketFD < 0)
 	    throw GenerateSystemDescriptiveError(errno);
 			
